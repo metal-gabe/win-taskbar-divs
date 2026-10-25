@@ -15,7 +15,7 @@ using System.Text;
 
 namespace WinTaskbarDivs
 {
-   public enum OverlayKind { Icon, Text, Image }
+   public enum OverlayKind { Icon, Text, Image, Bar }
    public enum OverlayPlacement { Center, Badge }
 
    public sealed class IconSpec
@@ -25,7 +25,7 @@ namespace WinTaskbarDivs
       // null => pick automatically for contrast
       public Color? OverlayColor;
       public OverlayKind Kind;
-      // icon character(s), literal text, or image path
+      // icon character(s), literal text, or image path (unused for Bar)
       public string Value;
       public OverlayPlacement Placement = OverlayPlacement.Center;
       public string IconFont = "Segoe Fluent Icons";
@@ -332,8 +332,24 @@ namespace WinTaskbarDivs
          return Rectangle.FromLTRB(minX, minY, maxX + 1, maxY + 1);
       }
 
+      // Bar divider: a white, full-height vertical line and nothing else. Width is
+      // in points as seen at the 24px taskbar size (96 DPI: 1pt = 4/3 px), scaled
+      // to each icon size and rounded to whole pixels so the edges stay crisp.
+      private const double BarPoints = 1;
+
+      private static Bitmap RenderBar(int size)
+      {
+         int bar = Math.Max(1, (int)Math.Round(BarPoints * 4 / 3 * size / 24));
+         var bmp = new Bitmap(size, size, PixelFormat.Format32bppArgb);
+         using (var g = Graphics.FromImage(bmp))
+            g.FillRectangle(Brushes.White, (size - bar) / 2, 0, bar, size);
+         return bmp;
+      }
+
       public static Bitmap Render(IconSpec spec, int size)
       {
+         if (spec.Kind == OverlayKind.Bar) return RenderBar(size);
+
          var bmp = ExtractFolder(size);
          if (spec.FolderColor.HasValue) Recolor(bmp, spec.FolderColor.Value);
 

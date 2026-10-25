@@ -7,8 +7,32 @@ function New-WinDivSpec {
       [string] $Image,
       [ValidateSet('Center', 'Badge')]
       [string] $Placement = 'Center',
-      [string] $IconColor
+      [string] $IconColor,
+      [switch] $Bar
    )
+
+   if ($Bar) {
+      $ignored = @(
+         if ($Color -ne 'native') { '-Color' }
+         if ($Icon) { '-Icon' }
+         if ($Text) { '-Text' }
+         if ($Image) { '-Image' }
+         if ($Placement -ne 'Center') { '-Placement' }
+         if ($IconColor) { '-IconColor' }
+      );
+      if ($ignored) {
+         Write-Warning "-Bar draws only a white bar; ignoring $($ignored -join ', ').";
+      }
+      $spec = [WinTaskbarDivs.IconSpec]::new();
+      $spec.Kind = 'Bar';
+      return [pscustomobject]@{
+         Spec         = $spec;
+         ColorHex     = $null;
+         IconColorHex = $null;
+         OverlayType  = 'bar';
+         OverlayValue = $null;
+      };
+   }
 
    $chosen = @(
       @{ Type = 'Icon'; Value = $Icon },

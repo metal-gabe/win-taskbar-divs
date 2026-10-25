@@ -19,14 +19,17 @@ function Get-WinDiv {
             $_.Target -and $_.Target.StartsWith("$($m.Path)\", [System.StringComparison]::OrdinalIgnoreCase)
          });
 
-      $overlayValue = $m.overlay.value;
-      if ($m.overlay.type -eq 'image') { $overlayValue = Split-Path $overlayValue -Leaf; }
+      $overlay = switch ($m.overlay.type) {
+         'bar' { 'bar' }
+         'image' { "image: $(Split-Path $m.overlay.value -Leaf)" }
+         default { "$($m.overlay.type): $($m.overlay.value)" }
+      };
 
       [pscustomobject]@{
          PSTypeName = 'WinTaskbarDivs.Divider';
          Id         = $m.id;
          Color      = $m.color;
-         Overlay    = "$($m.overlay.type): $overlayValue";
+         Overlay    = $overlay;
          Placement  = $m.placement;
          Tooltip    = $m.tooltip;
          Pinned     = $isPinned;

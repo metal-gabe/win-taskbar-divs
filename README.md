@@ -1,6 +1,6 @@
 # WinTaskbarDivs
 
-Windows 11 won't pin folders to the taskbar. `divs` makes small do-nothing "apps" that look like standard Windows folders, recolored and with an icon, text or image on top, so you can pin them as visual dividers between groups of apps.
+Windows 11 won't pin folders to the taskbar. `divs` makes small do-nothing "apps" that look like standard Windows folders, recolored and with an icon, text or image on top, so you can pin them as visual dividers between groups of apps. Or, with `-Bar`, just a thin white vertical line.
 
 ![examples](docs/examples.png)
 
@@ -32,9 +32,11 @@ To undo both, run `.\install.ps1 -Uninstall`.
 divs new -Color blue -Icon code -Tooltip "Dev tools"
 divs new -Color "#E11D48" -Text WK         # no -Tooltip = no hover text
 divs new -Color teal -Image C:\pics\logo.png -Placement Badge
+divs new -Bar -Tooltip Work                # plain white bar, no folder (no -Tooltip: bar-N)
 divs preview -Color purple -Icon music     # PNG preview, creates nothing
-divs list
-divs remove dev-tools
+divs list                                  # alias: divs ls
+divs remove dev-tools                      # alias: divs rm; 'divs remove all' asks first (-Force skips)
+divs rebuild [<id> | all]                  # re-create from saved settings (default: all)
 divs open [<id>]
 divs icons                                 # icon names (Tab-completes too)
 divs icons -Show -Color blue               # picture of every icon on a folder
@@ -48,14 +50,15 @@ divs help
 | `-Icon`      | A name from `divs icons`, or any Segoe Fluent Icons codepoint (`U+E943`).        |
 | `-Text`      | 1–3 characters.                                                                  |
 | `-Image`     | `.png`, `.ico`, `.jpg`, `.bmp` or `.gif`.                                        |
-| `-Tooltip`   | Hover text. If you leave it out, there's no hover text.                          |
+| `-Tooltip`   | Hover text. Default: the icon name with `-Icon`, the id with `-Bar`, else none.  |
 | `-Placement` | `Center` (default) or `Badge` (circle at the bottom-right).                      |
 | `-IconColor` | Overlay color. Default: chosen automatically for contrast.                       |
-| `-Id`        | Folder/exe name. Default: made from the tooltip, or `div-N`.                     |
+| `-Bar`       | Just a thin white vertical bar, no folder. The options above are ignored.        |
+| `-Id`        | Folder/exe name. Default: made from the tooltip, or `div-N` (`bar-N` with `-Bar`). |
 | `-NoOpen`    | Don't open Explorer afterwards.                                                  |
 | `-Force`     | Replace an existing divider with the same id.                                    |
 
-You need exactly one of `-Icon`, `-Text` or `-Image`. The underlying commands (`New-WinDiv`, `Get-WinDiv`, `Remove-WinDiv`, `Show-WinDivPreview`, …) are exported too, for scripting.
+You need exactly one of `-Icon`, `-Text` or `-Image`, unless you use `-Bar`. The underlying commands (`New-WinDiv`, `Get-WinDiv`, `Remove-WinDiv`, `Show-WinDivPreview`, …) are exported too, for scripting.
 
 ### Pinning
 
@@ -67,6 +70,7 @@ Windows blocks pinning from scripts, so `divs new` opens Explorer with the new s
 - **Name clashes.** When two dividers would have the same shortcut name, invisible characters are appended so their pins don't clash.
 - **Forbidden characters.** Tooltip characters that Windows forbids in file names (`: / \ ? * " < > |`) are replaced with look-alikes.
 - **Restyling.** `-Force` builds a new exe name, which gets around Explorer's icon cache. Unpin the old version, then pin the new one.
+- **Rebuilding.** After updating WinTaskbarDivs, `divs rebuild` re-renders every divider with the new look (run it in a fresh PowerShell window, since an open session keeps the old renderer loaded). Like `-Force`, it gives each divider a new exe name, so re-pin any that are pinned.
 - **Removing.** `divs remove` can't unpin anything. It warns you when the divider is still pinned.
 - **Icons in the terminal.** `divs icons` lists names only. The icons sit in Unicode's Private Use Area, where terminal fonts such as Nerd Fonts put their own unrelated symbols, so a terminal can't draw them reliably. Use `divs icons -Show` to see them.
 - **Helper DLL cache.** The C# helper (`Native.cs`) is compiled once into `%LOCALAPPDATA%\WinTaskbarDivs` and loaded from there. Loading it straight from memory sometimes gets blocked by Defender. It recompiles by itself whenever `Native.cs` changes.
