@@ -1,13 +1,17 @@
 function New-WinDiv {
    <#
    .SYNOPSIS
-   Creates a taskbar divider pseudo-app: a recolored folder icon with an overlay.
+   Creates a taskbar divider pseudo-app: a recolored folder icon with an overlay,
+   or (with -Bar) a plain white vertical bar.
 
    .EXAMPLE
    New-WinDiv -Color blue -Icon code -Tooltip 'Dev tools'
 
    .EXAMPLE
    New-WinDiv -Color '#E11D48' -Text WK
+
+   .EXAMPLE
+   New-WinDiv -Bar -Tooltip 'Work'
    #>
    [CmdletBinding(SupportsShouldProcess = $true)]
    param (
@@ -16,7 +20,8 @@ function New-WinDiv {
       [string] $Text,
       [string] $Image,
 
-      # Hover text. Omit it and the divider has no visible tooltip.
+      # Hover text. Omitted: the icon name for -Icon, the id for -Bar, otherwise
+      # none. Pass '' for no visible tooltip.
       [AllowEmptyString()]
       [string] $Tooltip = '',
 
@@ -25,7 +30,11 @@ function New-WinDiv {
 
       [string] $IconColor,
 
-      # Folder/exe name; defaults to a slug of the tooltip, or div-N.
+      # Just a white vertical bar; -Color, -Icon, -Text, -Image, -Placement and
+      # -IconColor are ignored.
+      [switch] $Bar,
+
+      # Folder/exe name; defaults to a slug of the tooltip, or div-N (bar-N with -Bar).
       [string] $Id,
 
       # Don't open Explorer at the new shortcut afterwards.
@@ -35,7 +44,7 @@ function New-WinDiv {
       [switch] $Force
    )
 
-   $look = New-WinDivSpec -Color $Color -Icon $Icon -Text $Text -Image $Image -Placement $Placement -IconColor $IconColor;
+   $look = New-WinDivSpec -Color $Color -Icon $Icon -Text $Text -Image $Image -Placement $Placement -IconColor $IconColor -Bar:$Bar;
 
    $root = Get-WinDivRoot;
    Assert-WinDivWritable $root;
@@ -44,14 +53,21 @@ function New-WinDiv {
    if (-not $Id) {
       $Id = ConvertTo-WinDivSlug $Tooltip;
       if (-not $Id) {
+         $prefix = if ($Bar) { 'bar' } else { 'div' };
          $n = 1;
-         while (Test-Path -LiteralPath (Join-Path $root "div-$n")) { $n++; }
-         $Id = "div-$n";
+         while (Test-Path -LiteralPath (Join-Path $root "$prefix-$n")) { $n++; }
+         $Id = "$prefix-$n";
       }
    }
    $Id = $Id.ToLowerInvariant();
    if (-not (Test-WinDivId $Id)) {
-      throw "Invalid id '$Id'. Use 1-40 lowercase letters, digits or dashes, starting with a letter or digit.";
+      throw "Invalid id '$Id'. Use 1-40 lowercase letters, digits or dashes, starting with a letter or digit ('all' is reserved).";
+   }
+
+   # Default hover text, set after the id so it doesn't change the id: a bar shows
+   # its id, an icon divider its icon name. An explicit -Tooltip '' means none.
+   if (-not $PSBoundParameters.ContainsKey('Tooltip')) {
+      if ($Bar) { $Tooltip = $Id; } elseif ($Icon) { $Tooltip = $Icon; }
    }
 
    $dir = Join-Path $root $Id;
@@ -90,9 +106,9 @@ function New-WinDiv {
       $manifest = [ordered]@{
          id        = $Id;
          version   = $version;
-         color     = if ($look.ColorHex) { $look.ColorHex } else { 'native' };
+         color     = if ($Bar) { $null } elseif ($look.ColorHex) { $look.ColorHex } else { 'native' };
          overlay   = [ordered]@{ type = $look.OverlayType; value = $look.OverlayValue };
-         placement = $Placement.ToLowerInvariant();
+         placement = if ($Bar) { $null } else { $Placement.ToLowerInvariant() };
          iconColor = $look.IconColorHex;
          tooltip   = $Tooltip;
          exe       = $exeName;

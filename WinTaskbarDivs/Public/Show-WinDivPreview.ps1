@@ -19,13 +19,16 @@ function Show-WinDivPreview {
 
       [string] $IconColor,
 
+      # Just a white vertical bar (the other look options are ignored).
+      [switch] $Bar,
+
       [string] $OutFile,
 
       # Write the PNG but don't open it.
       [switch] $NoOpen
    )
 
-   $look = New-WinDivSpec -Color $Color -Icon $Icon -Text $Text -Image $Image -Placement $Placement -IconColor $IconColor;
+   $look = New-WinDivSpec -Color $Color -Icon $Icon -Text $Text -Image $Image -Placement $Placement -IconColor $IconColor -Bar:$Bar;
 
    if (-not $OutFile) {
       $OutFile = Join-Path ([System.IO.Path]::GetTempPath()) "divs-preview-$(Get-Date -Format 'yyyyMMdd-HHmmss').png";

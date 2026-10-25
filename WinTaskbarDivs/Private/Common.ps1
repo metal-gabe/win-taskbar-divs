@@ -44,7 +44,8 @@ function Test-WinDivId {
       [string] $Id
    )
 
-   return $Id -cmatch '^[a-z0-9][a-z0-9-]{0,39}$';
+   # 'all' is reserved: 'divs rebuild all' / 'divs remove all' mean every divider.
+   return $Id -cmatch '^[a-z0-9][a-z0-9-]{0,39}$' -and $Id -ne 'all';
 }
 
 # Reads every divider.json under the root. Each result gets a Path property.

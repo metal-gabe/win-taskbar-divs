@@ -12,6 +12,7 @@
       'New-WinDiv',
       'Get-WinDiv',
       'Remove-WinDiv',
+      'Update-WinDiv',
       'Open-WinDiv',
       'Show-WinDivPreview',
       'Get-WinDivIcon',

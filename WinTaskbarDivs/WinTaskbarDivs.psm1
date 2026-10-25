@@ -22,7 +22,12 @@ $colorCompleter = {
 };
 
 $idCompleter = {
-   param ($commandName, $parameterName, $wordToComplete)
+   param ($commandName, $parameterName, $wordToComplete, $commandAst, $fakeBoundParameters)
+   $takesAll = $commandName -in 'Remove-WinDiv', 'Update-WinDiv' -or
+      ($commandName -eq 'divs' -and $fakeBoundParameters['Action'] -in 'remove', 'rm', 'rebuild');
+   if ($takesAll -and 'all' -like "$wordToComplete*") {
+      [System.Management.Automation.CompletionResult]::new('all', 'all', 'ParameterValue', 'every divider');
+   }
    Read-WinDivManifests -Root (Get-WinDivRoot) | Where-Object { $_.id -like "$wordToComplete*" } | ForEach-Object {
       [System.Management.Automation.CompletionResult]::new($_.id, $_.id, 'ParameterValue', $(if ($_.tooltip) { $_.tooltip } else { $_.id }));
    };
@@ -32,4 +37,4 @@ $lookCommands = 'divs', 'New-WinDiv', 'Show-WinDivPreview';
 Register-ArgumentCompleter -CommandName $lookCommands -ParameterName Icon -ScriptBlock $iconCompleter;
 Register-ArgumentCompleter -CommandName $lookCommands -ParameterName Color -ScriptBlock $colorCompleter;
 Register-ArgumentCompleter -CommandName $lookCommands -ParameterName IconColor -ScriptBlock $colorCompleter;
-Register-ArgumentCompleter -CommandName 'divs', 'Get-WinDiv', 'Remove-WinDiv', 'Open-WinDiv' -ParameterName Id -ScriptBlock $idCompleter;
+Register-ArgumentCompleter -CommandName 'divs', 'Get-WinDiv', 'Remove-WinDiv', 'Update-WinDiv', 'Open-WinDiv' -ParameterName Id -ScriptBlock $idCompleter;
