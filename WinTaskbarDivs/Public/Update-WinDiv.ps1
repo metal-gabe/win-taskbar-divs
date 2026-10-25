@@ -37,7 +37,9 @@ function Update-WinDiv {
 
    $manifests = @(Read-WinDivManifests -Root (Get-WinDivRoot));
    $repin = @();
-   foreach ($div in $targets) {
+   $lastError = $null;
+   for ($i = 0; $i -lt $targets.Count; $i++) {
+      $div = $targets[$i];
       if (-not $PSCmdlet.ShouldProcess($div.Path, 'Rebuild taskbar divider')) { continue; }
 
       $m = $manifests | Where-Object id -eq $div.Id | Select-Object -First 1;
@@ -53,8 +55,16 @@ function Update-WinDiv {
          New-WinDiv -Id $m.id -Tooltip $m.tooltip @look -NoOpen -Force -ErrorAction Stop 6>$null;
          Write-Host "Rebuilt divider '$($m.id)'." -ForegroundColor Green;
          if ($div.Pinned) { $repin += $m.id; }
+         $lastError = $null;
       } catch {
          Write-Error "Couldn't rebuild '$($m.id)': $_";
+         # The same error twice in a row is a shared problem (no write access, no
+         # compiler, ...), so the rest would fail too.
+         if ($lastError -eq $_.Exception.Message -and $i -lt $targets.Count - 1) {
+            Write-Warning "Stopped after repeated failures. Not attempted: $($targets[($i + 1)..($targets.Count - 1)].Id -join ', ').";
+            break;
+         }
+         $lastError = $_.Exception.Message;
       }
    }
 

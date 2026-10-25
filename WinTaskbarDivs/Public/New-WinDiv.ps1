@@ -82,26 +82,29 @@ function New-WinDiv {
 
    if (-not $PSCmdlet.ShouldProcess($dir, 'Create taskbar divider')) { return; }
 
-   if (Test-Path -LiteralPath $dir) {
-      Remove-Item -LiteralPath $dir -Recurse -Force;
+   # Build in a staging folder and swap it in only once it's complete, so a failed
+   # -Force keeps the existing divider. Dot-prefixed folders aren't listed as dividers.
+   $stage = Join-Path $root ".$Id.new";
+   $backup = Join-Path $root ".$Id.old";
+   foreach ($leftover in $stage, $backup) {
+      if (Test-Path -LiteralPath $leftover) { Remove-Item -LiteralPath $leftover -Recurse -Force -ErrorAction Stop; }
    }
-   New-Item -ItemType Directory -Path $dir | Out-Null;
+   New-Item -ItemType Directory -Path $stage | Out-Null;
+
+   # A new exe name on each re-create sidesteps Explorer's icon cache.
+   $exeName = if ($version -gt 1) { "$Id-v$version.exe" } else { "$Id.exe" };
+   $exePath = Join-Path $dir $exeName;
+   $linkName = Get-WinDivLinkName -Tooltip $Tooltip -Root $root -Id $Id;
+   $linkPath = Join-Path $dir "$linkName.lnk";
 
    try {
-      $icoPath = Join-Path $dir 'icon.ico';
+      $icoPath = Join-Path $stage 'icon.ico';
       Invoke-WinDivRender -Spec $look.Spec -Action {
          param ($images)
          [WinTaskbarDivs.IconRenderer]::WriteIco($icoPath, $images);
       };
 
-      # A new exe name on each re-create sidesteps Explorer's icon cache.
-      $exeName = if ($version -gt 1) { "$Id-v$version.exe" } else { "$Id.exe" };
-      $exePath = Join-Path $dir $exeName;
-      Build-WinDivStub -OutFile $exePath -IconFile $icoPath -Title $Tooltip;
-
-      $linkName = Get-WinDivLinkName -Tooltip $Tooltip -Root $root -Id $Id;
-      $linkPath = Join-Path $dir "$linkName.lnk";
-      New-WinDivLink -Path $linkPath -Target $exePath -Description $Tooltip -AppId "$script:WinDivAppIdPrefix$Id";
+      Build-WinDivStub -OutFile (Join-Path $stage $exeName) -IconFile $icoPath -Title $Tooltip;
 
       $manifest = [ordered]@{
          id        = $Id;
@@ -115,11 +118,34 @@ function New-WinDiv {
          linkName  = $linkName;
          created   = (Get-Date).ToString('o');
       };
-      $manifest | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $dir $script:WinDivManifestName) -Encoding utf8;
+      $manifest | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $stage $script:WinDivManifestName) -Encoding utf8;
    } catch {
       # Don't leave a half-built divider behind
-      Remove-Item -LiteralPath $dir -Recurse -Force -ErrorAction SilentlyContinue;
+      Remove-Item -LiteralPath $stage -Recurse -Force -ErrorAction SilentlyContinue;
       throw;
+   }
+
+   # The link is made in place, so it points at the exe's final path.
+   $movedOld = $false;
+   $movedNew = $false;
+   try {
+      if (Test-Path -LiteralPath $dir) {
+         [System.IO.Directory]::Move($dir, $backup);
+         $movedOld = $true;
+      }
+      [System.IO.Directory]::Move($stage, $dir);
+      $movedNew = $true;
+      New-WinDivLink -Path $linkPath -Target $exePath -Description $Tooltip -AppId "$script:WinDivAppIdPrefix$Id";
+   } catch {
+      # Put the old divider back
+      if ($movedNew) { Remove-Item -LiteralPath $dir -Recurse -Force -ErrorAction SilentlyContinue; }
+      Remove-Item -LiteralPath $stage -Recurse -Force -ErrorAction SilentlyContinue;
+      if ($movedOld) { [System.IO.Directory]::Move($backup, $dir); }
+      throw;
+   }
+   if ($movedOld) {
+      # A leftover is cleaned up by the next re-create
+      Remove-Item -LiteralPath $backup -Recurse -Force -ErrorAction SilentlyContinue;
    }
 
    if (-not $NoOpen) {

@@ -58,6 +58,8 @@ function Read-WinDivManifests {
    if (-not (Test-Path -LiteralPath $Root)) { return; }
 
    foreach ($dir in Get-ChildItem -LiteralPath $Root -Directory) {
+      # New-WinDiv's staging and backup folders (ids can't start with a dot)
+      if ($dir.Name.StartsWith('.')) { continue; }
       $file = Join-Path $dir.FullName $script:WinDivManifestName;
       if (-not (Test-Path -LiteralPath $file)) { continue; }
       $manifest = Get-Content -LiteralPath $file -Raw -Encoding utf8 | ConvertFrom-Json;
